@@ -9,7 +9,7 @@
 
 use extra::net::url::Url;
 
-pub fn build_request(url: Url) -> ~str {
+pub fn build_request(url: Url, headers: ~[(~str, ~str)]) -> ~str {
 
     let host = copy url.host;
     let mut path = if url.path.len() > 0 { copy url.path } else { ~"/" };
@@ -24,10 +24,19 @@ pub fn build_request(url: Url) -> ~str {
         path.push_str(kvps.connect("&"));
     }
 
+    let mut request_header2 = ~[
+        fmt!("GET %s HTTP/1.0", path),
+        fmt!("Host: %s", host)
+    ];
+
+    // Two empty strings create \r\n\r\n
+    // Which is the END of HTTP headers
+    request_header2.push(~"");
+    request_header2.push(~"");
+
     let request_header = fmt!("GET %s HTTP/1.0\u000D\u000AHost: %s\u000D\u000A\u000D\u000A",
                               path, host);
-
-    return request_header;
+    return request_header2.connect("\u000D\u000A");
 }
 
 #[test]

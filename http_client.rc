@@ -22,6 +22,7 @@ A simple HTTP client in Rust
 
 extern mod extra;
 
+use std::hashmap::HashMap;
 use std::ptr::to_unsafe_ptr;
 use std::result;
 use std::result::{Result, Ok, Err};
@@ -64,7 +65,7 @@ pub enum RequestError {
     ErrorMisc
 }
 
-/// Request 
+/// Request
 #[deriving(Eq)]
 pub enum RequestEvent {
     Status(StatusCode),
@@ -82,8 +83,8 @@ pub fn uv_dns_resolver() -> DnsResolver {
     return r;
 }
 
-pub fn uv_http_request(url: Url) -> HttpRequest<TcpSocket, UvConnectionFactory> {
-    HttpRequest(uv_dns_resolver(), UvConnectionFactory, url)
+pub fn uv_http_request(url: Url, options: HashMap<~str, ~str>) -> HttpRequest<TcpSocket, UvConnectionFactory> {
+    HttpRequest(uv_dns_resolver(), UvConnectionFactory, url, options)
 }
 
 #[allow(non_implicitly_copyable_typarams)]
@@ -92,18 +93,26 @@ pub struct HttpRequest<C, CF> {
     connection_factory: CF,
     url: Url,
     parser: Parser,
+    headers: ~[(~str, ~str)],
     cb: @fn(ev: RequestEvent)
 }
 
 pub fn HttpRequest<C: Connection, CF: ConnectionFactory<C>>(resolver: DnsResolver,
                                                             connection_factory: CF,
-                                                            url: Url) ->
+                                                            url: Url,
+                                                            options: HashMap<~str, ~str>) ->
                                                             HttpRequest<C,CF> {
+    let mut _headers = ~[];
+    if (options.contains_key_equiv(&~"User-Agent")) {
+        let value:~str = copy *options.get(&~"User-Agent");
+        _headers.push((~"User-Agent", value));
+    }
     HttpRequest {
         resolve_ip_addr: resolver,
         connection_factory: connection_factory,
         url: url,
         parser: Parser(),
+        headers: _headers,
         cb: |_event| { }
     }
 }
@@ -133,7 +142,7 @@ impl<C: Connection, CF: ConnectionFactory<C>> HttpRequest<C, CF> {
 
         debug!("http_client: got socket for %?", ip_addr);
 
-        let request_header = build_request(copy self.url);
+        let request_header = build_request(copy self.url, copy self.headers);
         debug!("http_client: writing request header: %?", request_header);
         let request_header_bytes = request_header.as_bytes().to_owned();
         match socket.write_(request_header_bytes) {
@@ -284,9 +293,9 @@ impl<C: Connection, CF: ConnectionFactory<C>> HttpRequest<C, CF> {
 }
 
 #[allow(non_implicitly_copyable_typarams)]
-pub fn sequence<C: Connection, CF: ConnectionFactory<C>>(request: &mut HttpRequest<C, CF>) -> 
+pub fn sequence<C: Connection, CF: ConnectionFactory<C>>(request: &mut HttpRequest<C, CF>) ->
     ~[RequestEvent] {
-    
+
     let events = @mut ~[];
     do request.begin |event| {
         events.push(event)
