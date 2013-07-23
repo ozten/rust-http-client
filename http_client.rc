@@ -71,6 +71,8 @@ pub enum RequestError {
 pub enum RequestEvent {
     Status(StatusCode),
     Payload(Cell<~[u8]>),
+    HeaderField(Cell<~[u8]>),
+    HeaderValue(Cell<~[u8]>),
     Error(RequestError)
 }
 
@@ -135,13 +137,11 @@ impl<C: Connection, CF: ConnectionFactory<C>> HttpRequest<C, CF> {
         debug!("http_client: using IP %? for %?", format_addr(&ip_addr), self.url.to_str());
 
         let socket = {
-            debug!("http_client: connecting to %?", ip_addr);
-
-            let port:uint = match self.url.port.clone() {
+            let port = match self.url.port.clone() {
                 Some(port) => uint::from_str(port).get(),
                 _ => 80
             };
-            println(fmt!("Connecting to ip via port %?", port));
+            debug!("http_client: connecting to %? on %?", ip_addr, port);
             let socket = self.connection_factory.connect(copy ip_addr, port);
             if socket.is_ok() {
                 result::unwrap(socket)
@@ -269,12 +269,14 @@ impl<C: Connection, CF: ConnectionFactory<C>> HttpRequest<C, CF> {
     pub fn on_header_field(&self, data: ~[u8]) -> bool {
         let header_field = str::from_bytes(data);
         debug!("on_header_field: %?", header_field);
+        (self.cb)(HeaderField(Cell::new(data)));
         true
     }
 
     pub fn on_header_value(&self, data: ~[u8]) -> bool {
         let header_value = str::from_bytes(data);
         debug!("on_header_value: %?", header_value);
+        (self.cb)(HeaderValue(Cell::new(data)));
         true
     }
 
