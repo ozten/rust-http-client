@@ -28,6 +28,7 @@ use std::result;
 use std::result::{Result, Ok, Err};
 use std::cell::Cell;
 use std::str;
+use std::uint;
 use extra::net::ip::{
     get_addr, format_addr,
     IpAddr, IpGetAddrErr, Ipv4, Ipv6
@@ -108,7 +109,6 @@ pub fn HttpRequest<C: Connection, CF: ConnectionFactory<C>>(resolver: DnsResolve
         _headers.push((~"User-Agent", value));
     }
     if (options.contains_key_equiv(&~"Accept")) {
-        println("Found Accept");
         let value:~str = copy *options.get(&~"Accept");
         _headers.push((~"Accept", value));
     }
@@ -136,7 +136,13 @@ impl<C: Connection, CF: ConnectionFactory<C>> HttpRequest<C, CF> {
 
         let socket = {
             debug!("http_client: connecting to %?", ip_addr);
-            let socket = self.connection_factory.connect(copy ip_addr, 80);
+
+            let port:uint = match self.url.port.clone() {
+                Some(port) => uint::from_str(port).get(),
+                _ => 80
+            };
+            println(fmt!("Connecting to ip via port %?", port));
+            let socket = self.connection_factory.connect(copy ip_addr, port);
             if socket.is_ok() {
                 result::unwrap(socket)
             } else {
