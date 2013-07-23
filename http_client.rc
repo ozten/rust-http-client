@@ -107,6 +107,12 @@ pub fn HttpRequest<C: Connection, CF: ConnectionFactory<C>>(resolver: DnsResolve
         let value:~str = copy *options.get(&~"User-Agent");
         _headers.push((~"User-Agent", value));
     }
+    if (options.contains_key_equiv(&~"Accept")) {
+        println("Found Accept");
+        let value:~str = copy *options.get(&~"Accept");
+        _headers.push((~"Accept", value));
+    }
+
     HttpRequest {
         resolve_ip_addr: resolver,
         connection_factory: connection_factory,
